@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agente GHG Protocol — Inventário de Emissões</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green-50: #f0faf5;
+    --green-100: #d1f0e0;
+    --green-200: #a3e0c2;
+    --green-500: #22a06b;
+    --green-600: #1a7d54;
+    --green-700: #14603f;
+    --gray-50: #f8f9fa;
+    --gray-100: #f1f3f5;
+    --gray-200: #e9ecef;
+    --gray-300: #dee2e6;
+    --gray-400: #ced4da;
+    --gray-500: #adb5bd;
+    --gray-600: #868e96;
+    --gray-700: #495057;
+    --gray-800: #343a40;
+    --gray-900: #212529;
+    --blue-50: #e8f4fd;
+    --blue-500: #228be6;
+    --blue-600: #1971c2;
+    --amber-50: #fff9db;
+    --amber-500: #f59f00;
+    --amber-600: #e67700;
+    --red-50: #fff5f5;
+    --red-500: #fa5252;
+    --red-600: #e03131;
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.06);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    color: var(--gray-900);
+  }
+
+  /* TOP NAV */
+  .topnav {
+    background: #fff;
+    border-bottom: 1px solid var(--gray-200);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+  }
+  .nav-logo {
+    width: 32px; height: 32px;
+    background: var(--green-500);
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .nav-title { font-weight: 600; font-size: 15px; color: var(--gray-900); }
+  .nav-sub { font-size: 12px; color: var(--gray-500); }
+  .nav-badge {
+    margin-left: auto;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--green-50);
+    color: var(--green-600);
+    border: 1px solid var(--green-100);
+  }
+
+  /* MAIN LAYOUT */
+  .main {
+    flex: 1;
+    display: flex;
+    max-width: 1100px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 24px 16px;
+    gap: 20px;
+    align-items: flex-start;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 220px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: sticky;
+    top: 80px;
+  }
+  .sidebar-card {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .sidebar-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gray-500);
+    margin-bottom: 10px;
+  }
+  .scope-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    color: var(--gray-600);
+    margin-bottom: 2px;
+    transition: all 0.2s;
+    cursor: default;
+  }
+  .scope-item.active {
+    background: var(--green-50);
+    color: var(--green-700);
+    font-weight: 500;
+  }
+  .scope-item.done {
+    color: var(--green-500);
+  }
+  .scope-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--gray-300);
+    flex-shrink: 0;
+  }
+  .scope-item.active .scope-dot { background: var(--green-500); }
+  .scope-item.done .scope-dot { background: var(--green-200); }
+
+  .info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--gray-600);
+    padding: 4px 0;
+    border-bottom: 1px solid var(--gray-100);
+  }
+  .info-item:last-child { border-bottom: none; }
+  .info-icon { color: var(--green-500); margin-top: 1px; font-size: 13px; }
+
+  /* CHAT CONTAINER */
+  .chat-wrapper {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .chat-card {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    height: 580px;
+    overflow: hidden;
+  }
+
+  /* CHAT HEADER */
+  .chat-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--gray-100);
+    background: var(--gray-50);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .chat-avatar {
+    width: 38px; height: 38px;
+    background: var(--green-500);
+    border-radius: var(--radius-md);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .chat-header-text h2 { font-size: 14px; font-weight: 600; }
+  .chat-header-text p { font-size: 12px; color: var(--gray-500); margin-top: 1px; }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--green-500);
+    margin-left: auto;
+    box-shadow: 0 0 0 3px var(--green-50);
+  }
+
+  /* MESSAGES */
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scroll-behavior: smooth;
+  }
+  #messages::-webkit-scrollbar { width: 4px; }
+  #messages::-webkit-scrollbar-track { background: transparent; }
+  #messages::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 2px; }
+
+  .msg { display: flex; gap: 10px; max-width: 85%; animation: fadeIn 0.2s ease; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .msg-avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+    align-self: flex-end;
+  }
+  .agent-av { background: var(--green-50); color: var(--green-600); border: 1px solid var(--green-100); }
+  .user-av { background: var(--blue-50); color: var(--blue-600); border: 1px solid #bde0fa; }
+
+  .bubble {
+    padding: 11px 15px;
+    border-radius: var(--radius-lg);
+    font-size: 14px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+  }
+  .agent-bubble {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    color: var(--gray-800);
+    border-bottom-left-radius: 4px;
+    box-shadow: var(--shadow-sm);
+  }
+  .user-bubble {
+    background: var(--green-500);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+
+  .typing-dots { display: flex; gap: 4px; padding: 6px 4px; align-items: center; }
+  .typing-dots span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--gray-400);
+    animation: bounce 1.2s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+  /* INPUT */
+  .input-area {
+    padding: 14px 16px;
+    border-top: 1px solid var(--gray-100);
+    background: var(--gray-50);
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  #user-input {
+    flex: 1;
+    padding: 10px 14px;
+    font-size: 14px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-lg);
+    background: #fff;
+    color: var(--gray-900);
+    font-family: inherit;
+    resize: none;
+    line-height: 1.4;
+    transition: border-color 0.15s;
+    outline: none;
+  }
+  #user-input:focus { border-color: var(--green-500); box-shadow: 0 0 0 3px rgba(34,160,107,0.12); }
+  #send-btn {
+    width: 40px; height: 40px;
+    border-radius: var(--radius-md);
+    border: none;
+    background: var(--green-500);
+    color: #fff;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    transition: background 0.15s, transform 0.1s;
+    flex-shrink: 0;
+  }
+  #send-btn:hover { background: var(--green-600); }
+  #send-btn:active { transform: scale(0.95); }
+  #send-btn:disabled { background: var(--gray-300); cursor: not-allowed; transform: none; }
+
+  /* REPORT */
+  #report-panel {
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+  }
+  #report-panel.visible { display: flex; }
+  #report-panel::-webkit-scrollbar { width: 4px; }
+  #report-panel::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 2px; }
+
+  .report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .report-company { font-size: 18px; font-weight: 700; color: var(--gray-900); }
+  .report-meta { font-size: 12px; color: var(--gray-500); margin-top: 2px; }
+
+  .report-btn {
+    padding: 8px 14px;
+    font-size: 13px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    background: #fff;
+    color: var(--gray-700);
+    cursor: pointer;
+    font-family: inherit;
+    display: flex; align-items: center; gap: 6px;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .report-btn:hover { background: var(--gray-50); border-color: var(--gray-400); }
+  .report-btn.green {
+    background: var(--green-500);
+    color: #fff;
+    border-color: var(--green-500);
+  }
+  .report-btn.green:hover { background: var(--green-600); }
+
+  .total-banner {
+    background: linear-gradient(135deg, var(--green-500), var(--green-700));
+    border-radius: var(--radius-lg);
+    padding: 18px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+  }
+  .total-label-main { font-size: 12px; font-weight: 600; opacity: 0.85; letter-spacing: 0.05em; text-transform: uppercase; }
+  .total-sub { font-size: 13px; opacity: 0.75; margin-top: 2px; }
+  .total-value { font-size: 28px; font-weight: 700; }
+  .total-unit { font-size: 14px; font-weight: 400; opacity: 0.8; }
+
+  .scope-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .scope-card {
+    border-radius: var(--radius-lg);
+    padding: 14px;
+    text-align: center;
+  }
+  .scope-card.s1 { background: var(--amber-50); border: 1px solid #ffe8a3; }
+  .scope-card.s2 { background: var(--blue-50); border: 1px solid #bde0fa; }
+  .scope-card.s3 { background: var(--red-50); border: 1px solid #ffc9c9; }
+  .scope-card-label { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
+  .s1 .scope-card-label { color: var(--amber-600); }
+  .s2 .scope-card-label { color: var(--blue-600); }
+  .s3 .scope-card-label { color: var(--red-600); }
+  .scope-card-value { font-size: 20px; font-weight: 700; }
+  .s1 .scope-card-value { color: var(--amber-600); }
+  .s2 .scope-card-value { color: var(--blue-600); }
+  .s3 .scope-card-value { color: var(--red-600); }
+  .scope-card-unit { font-size: 11px; opacity: 0.7; }
+
+  .detail-section {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .detail-header {
+    padding: 12px 16px;
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-100);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gray-700);
+  }
+  .scope-pill {
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .pill-s1 { background: var(--amber-50); color: var(--amber-600); border: 1px solid #ffe8a3; }
+  .pill-s2 { background: var(--blue-50); color: var(--blue-600); border: 1px solid #bde0fa; }
+  .pill-s3 { background: var(--red-50); color: var(--red-600); border: 1px solid #ffc9c9; }
+
+  .emission-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--gray-100);
+    font-size: 13px;
+  }
+  .emission-row:last-child { border-bottom: none; }
+  .emission-label { color: var(--gray-600); }
+  .emission-value { font-weight: 600; color: var(--gray-800); }
+
+  .footer-note {
+    font-size: 11px;
+    color: var(--gray-400);
+    text-align: center;
+    padding: 4px;
+    line-height: 1.6;
+  }
+
+  /* DISCLAIMER */
+  .disclaimer {
+    background: #fff;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: 14px 18px;
+    font-size: 12px;
+    color: var(--gray-600);
+    line-height: 1.6;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { padding: 12px; }
+    .scope-cards { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="nav-logo">🌿</div>
+  <div>
+    <div class="nav-title">Agente GHG Protocol</div>
+    <div class="nav-sub">Inventário de Emissões de Carbono</div>
+  </div>
+  <div class="nav-badge">Beta v0.1</div>
+</nav>
+
+<div class="main">
+  <aside class="sidebar">
+    <div class="sidebar-card">
+      <div class="sidebar-label">Progresso</div>
+      <div class="scope-item active" id="step-intro">
+        <div class="scope-dot"></div> Identificação
+      </div>
+      <div class="scope-item" id="step-s1">
+        <div class="scope-dot"></div> Escopo 1 — Diretas
+      </div>
+      <div class="scope-item" id="step-s2">
+        <div class="scope-dot"></div> Escopo 2 — Energia
+      </div>
+      <div class="scope-item" id="step-s3">
+        <div class="scope-dot"></div> Escopo 3 — Cadeia
+      </div>
+      <div class="scope-item" id="step-report">
+        <div class="scope-dot"></div> Relatório
+      </div>
+    </div>
+
+    <div class="sidebar-card">
+      <div class="sidebar-label">Sobre</div>
+      <div class="info-item">
+        <span class="info-icon">📋</span>
+        <span>Metodologia GHG Protocol / MCTI</span>
+      </div>
+      <div class="info-item">
+        <span class="info-icon">🇧🇷</span>
+        <span>Fatores de emissão para o Brasil</span>
+      </div>
+      <div class="info-item">
+        <span class="info-icon">⏱️</span>
+        <span>Coleta em ~15 minutos</span>
+      </div>
+      <div class="info-item">
+        <span class="info-icon">🔒</span>
+        <span>Dados não armazenados</span>
+      </div>
+    </div>
+  </aside>
+
+  <div class="chat-wrapper">
+    <div class="chat-card" id="chat-card">
+      <div class="chat-header">
+        <div class="chat-avatar">G</div>
+        <div class="chat-header-text">
+          <h2>Especialista GHG Protocol</h2>
+          <p>Coleta guiada de dados de emissões</p>
+        </div>
+        <div class="status-dot"></div>
+      </div>
+
+      <div id="messages"></div>
+      <div id="report-panel"></div>
+
+      <div class="input-area" id="input-area">
+        <textarea id="user-input" rows="1" placeholder="Digite sua resposta e pressione Enter..."></textarea>
+        <button id="send-btn" title="Enviar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      <strong>Aviso metodológico:</strong> Este inventário é uma estimativa baseada nos fatores do GHG Protocol e MCTI/Brasil. Para fins de reporte formal, auditoria ou certificação, o inventário deve ser verificado por terceira parte independente. Os dados inseridos não são armazenados em nenhum servidor.
+    </div>
+  </div>
+</div>
+
+<script>
+const SYSTEM_PROMPT = `Você é um especialista em inventário de GHG Protocol conduzindo uma entrevista de coleta de dados de emissões de carbono para uma empresa. Seu objetivo é coletar, de forma conversacional e amigável, todos os dados necessários para calcular as emissões nos Escopos 1, 2 e 3.
+
+FLUXO DA ENTREVISTA:
+Siga exatamente esta sequência de coleta:
+
+FASE 1 - IDENTIFICAÇÃO:
+- Nome da empresa
+- Setor de atuação
+- Ano de referência do inventário
+- Número de funcionários (para estimativas de Escopo 3)
+
+FASE 2 - ESCOPO 1 (emissões diretas):
+Colete CADA UM dos seguintes dados (um por vez, de forma conversacional):
+- Consumo de diesel (litros/ano) — frota própria, geradores
+- Consumo de gasolina (litros/ano) — frota própria
+- Consumo de gás natural (m³/ano) — caldeiras, aquecimento
+- Consumo de GLP (kg/ano) — cozinha industrial, aquecimento
+- Gases refrigerantes: tipo (R-22, R-410A, R-134a, outro) e quantidade reposta (kg/ano)
+- Processos industriais que geram CO2 direto? (ex: fornos, reações químicas) — se sim, quantidade estimada em toneladas
+
+FASE 3 - ESCOPO 2 (emissões indiretas de energia):
+- Consumo de energia elétrica total (kWh/ano) — peça a conta de energia ou estimativa mensal
+- Estado/região da empresa (para fator da rede elétrica brasileira — SIN ou sistema isolado)
+- Vapor ou energia térmica comprada de terceiros? (GJ/ano)
+
+FASE 4 - ESCOPO 3 (outras emissões indiretas):
+- Logística/transporte terceirizado: volume transportado (t.km/ano) ou estimativa de fretes/mês
+- Viagens corporativas aéreas: número de viagens e distância média (curta <500km, média 500-3000km, longa >3000km)
+- Viagens corporativas terrestres de terceiros: km/ano estimados
+- Resíduos gerados: toneladas/ano de resíduo orgânico, comum e reciclável
+- Água consumida: m³/ano (para emissões de tratamento)
+- Compras relevantes de materiais/insumos? (se setor industrial)
+
+REGRAS DE COMPORTAMENTO:
+1. Faça UMA pergunta por vez — nunca liste múltiplas perguntas de uma vez
+2. Seja conversacional, não burocrático. Use linguagem simples
+3. Se o usuário não souber um dado exato, ajude a estimar com base em referências (ex: "Uma empresa de 50 funcionários tipicamente consome X")
+4. Confirme cada dado recebido antes de avançar
+5. Ao finalizar a coleta de cada Escopo, faça um breve resumo dos dados coletados
+6. Quando TODOS os dados estiverem coletados, retorne EXATAMENTE este JSON no final da sua resposta:
+
+<<<REPORT_DATA>>>
+{
+  "empresa": "nome",
+  "setor": "setor",
+  "ano": "ano",
+  "funcionarios": numero,
+  "escopo1": {
+    "diesel_litros": numero,
+    "gasolina_litros": numero,
+    "gas_natural_m3": numero,
+    "glp_kg": numero,
+    "refrigerante_tipo": "tipo",
+    "refrigerante_kg": numero,
+    "processos_tco2": numero
+  },
+  "escopo2": {
+    "energia_kwh": numero,
+    "estado": "estado",
+    "vapor_gj": numero
+  },
+  "escopo3": {
+    "frete_tkm": numero,
+    "viagens_aereas_curtas": numero,
+    "viagens_aereas_medias": numero,
+    "viagens_aereas_longas": numero,
+    "viagens_terrestres_km": numero,
+    "residuos_organico_t": numero,
+    "residuos_comum_t": numero,
+    "residuos_reciclavel_t": numero,
+    "agua_m3": numero
+  }
+}
+<<<END_REPORT>>>
+
+FATORES DE EMISSÃO (para uso interno):
+Escopo 1: Diesel 2.658 kgCO2e/L | Gasolina 2.212 kgCO2e/L | GN 2.034 kgCO2e/m³ | GLP 1.611 kgCO2e/kg | R-22 GWP 1810 | R-410A GWP 2088 | R-134a GWP 1430
+Escopo 2: Energia elétrica SIN Brasil 0.0906 kgCO2e/kWh
+Escopo 3: Frete rodoviário 0.096 kgCO2e/t.km | Voo curto 0.255 kgCO2e/km/pax | Voo médio 0.195 | Voo longo 0.150 | Resíduo orgânico 0.5 tCO2e/t | Resíduo comum 0.3 tCO2e/t | Água 0.344 kgCO2e/m³
+
+Inicie apresentando-se brevemente e fazendo a primeira pergunta sobre o nome da empresa.`;
+
+const EF = {
+  diesel: 2.658, gasolina: 2.212, gas_natural: 2.034, glp: 1.611,
+  r22: 1810, r410a: 2088, r134a: 1430,
+  energia: 0.0906,
+  frete: 0.000096,
+  voo_curto: 0.000255, voo_medio: 0.000195, voo_longo: 0.000150,
+  res_org: 0.5, res_comum: 0.3, agua: 0.000344
+};
+
+let history = [];
+let loading = false;
+
+const messagesEl = document.getElementById('messages');
+const inputEl = document.getElementById('user-input');
+const sendBtn = document.getElementById('send-btn');
+const reportPanel = document.getElementById('report-panel');
+
+function scrollBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }
+
+function addMsg(role, text, typing) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + (role === 'user' ? 'user' : 'agent');
+  const av = document.createElement('div');
+  av.className = 'msg-avatar ' + (role === 'user' ? 'user-av' : 'agent-av');
+  av.textContent = role === 'user' ? 'VC' : 'G';
+  const bub = document.createElement('div');
+  bub.className = 'bubble ' + (role === 'user' ? 'user-bubble' : 'agent-bubble');
+  if (typing) {
+    bub.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+  } else {
+    bub.textContent = text;
+  }
+  wrap.appendChild(av);
+  wrap.appendChild(bub);
+  messagesEl.appendChild(wrap);
+  scrollBottom();
+  return bub;
+}
+
+function updateProgress(phase) {
+  const map = { intro: 0, escopo1: 1, escopo2: 2, escopo3: 3, report: 4 };
+  const ids = ['step-intro','step-s1','step-s2','step-s3','step-report'];
+  const idx = map[phase] ?? 0;
+  ids.forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.className = 'scope-item' + (i === idx ? ' active' : i < idx ? ' done' : '');
+  });
+}
+
+function detectPhase(text) {
+  const t = text.toLowerCase();
+  if (t.includes('escopo 1') || t.includes('diesel') || t.includes('gasolina') || t.includes('gás natural') || t.includes('gas natural')) return 'escopo1';
+  if (t.includes('escopo 2') || t.includes('energia elétrica') || t.includes('kwh')) return 'escopo2';
+  if (t.includes('escopo 3') || t.includes('logística') || t.includes('viagem') || t.includes('resíduo')) return 'escopo3';
+  if (t.includes('relatório') || t.includes('inventário') && t.includes('conclu') || t.includes('report_data')) return 'report';
+  return null;
+}
+
+function fmt(n) { return (Math.round(n * 100) / 100).toFixed(2); }
+
+function calcEmissions(d) {
+  const s1 = {
+    diesel: (d.escopo1.diesel_litros||0) * EF.diesel / 1000,
+    gasolina: (d.escopo1.gasolina_litros||0) * EF.gasolina / 1000,
+    gas_natural: (d.escopo1.gas_natural_m3||0) * EF.gas_natural / 1000,
+    glp: (d.escopo1.glp_kg||0) * EF.glp / 1000,
+    refrigerante: (() => {
+      const kg = d.escopo1.refrigerante_kg || 0;
+      const tp = (d.escopo1.refrigerante_tipo||'').toLowerCase();
+      const gwp = tp.includes('410') ? EF.r410a : tp.includes('134') ? EF.r134a : EF.r22;
+      return kg * gwp / 1000;
+    })(),
+    processos: d.escopo1.processos_tco2 || 0
+  };
+  const s2 = {
+    energia: (d.escopo2.energia_kwh||0) * EF.energia / 1000,
+    vapor: (d.escopo2.vapor_gj||0) * 0.057
+  };
+  const s3 = {
+    frete: (d.escopo3.frete_tkm||0) * EF.frete,
+    viagens: (d.escopo3.viagens_aereas_curtas||0)*400*EF.voo_curto + (d.escopo3.viagens_aereas_medias||0)*1500*EF.voo_medio + (d.escopo3.viagens_aereas_longas||0)*5000*EF.voo_longo,
+    terrestres: (d.escopo3.viagens_terrestres_km||0) * 0.000171,
+    residuos: (d.escopo3.residuos_organico_t||0)*EF.res_org + (d.escopo3.residuos_comum_t||0)*EF.res_comum,
+    agua: (d.escopo3.agua_m3||0) * EF.agua
+  };
+  return { s1, s2, s3 };
+}
+
+function renderReport(data) {
+  const em = calcEmissions(data);
+  const tS1 = Object.values(em.s1).reduce((a,b)=>a+b,0);
+  const tS2 = Object.values(em.s2).reduce((a,b)=>a+b,0);
+  const tS3 = Object.values(em.s3).reduce((a,b)=>a+b,0);
+  const grand = tS1 + tS2 + tS3;
+
+  messagesEl.style.display = 'none';
+  document.getElementById('input-area').style.display = 'none';
+  reportPanel.style.display = 'flex';
+  reportPanel.style.flexDirection = 'column';
+  reportPanel.style.flex = '1';
+  reportPanel.style.overflowY = 'auto';
+  reportPanel.style.padding = '20px';
+  reportPanel.style.gap = '14px';
+  updateProgress('report');
+
+  const rows = (items) => items.filter(([,v])=>v>0).map(([k,v])=>`
+    <div class="emission-row">
+      <span class="emission-label">${k}</span>
+      <span class="emission-value">${fmt(v)} tCO₂e</span>
+    </div>`).join('') || '<div class="emission-row"><span class="emission-label" style="color:#adb5bd">Nenhuma emissão registrada</span></div>';
+
+  reportPanel.innerHTML = `
+    <div class="report-header">
+      <div>
+        <div class="report-company">${data.empresa}</div>
+        <div class="report-meta">${data.setor} &nbsp;·&nbsp; ${data.funcionarios} funcionários &nbsp;·&nbsp; Ano-base: ${data.ano}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="report-btn" onclick="window.print()">🖨️ Imprimir</button>
+        <button class="report-btn" onclick="restart()">↩ Novo inventário</button>
+      </div>
+    </div>
+
+    <div class="total-banner">
+      <div>
+        <div class="total-label-main">Emissões Totais ${data.ano}</div>
+        <div class="total-sub">Escopos 1 + 2 + 3 · GHG Protocol</div>
+      </div>
+      <div>
+        <span class="total-value">${fmt(grand)}</span>
+        <span class="total-unit"> tCO₂e</span>
+      </div>
+    </div>
+
+    <div class="scope-cards">
+      <div class="scope-card s1">
+        <div class="scope-card-label">Escopo 1</div>
+        <div class="scope-card-value">${fmt(tS1)}</div>
+        <div class="scope-card-unit">tCO₂e</div>
+      </div>
+      <div class="scope-card s2">
+        <div class="scope-card-label">Escopo 2</div>
+        <div class="scope-card-value">${fmt(tS2)}</div>
+        <div class="scope-card-unit">tCO₂e</div>
+      </div>
+      <div class="scope-card s3">
+        <div class="scope-card-label">Escopo 3</div>
+        <div class="scope-card-value">${fmt(tS3)}</div>
+        <div class="scope-card-unit">tCO₂e</div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-header"><span class="scope-pill pill-s1">ESCOPO 1</span> Emissões Diretas</div>
+      ${rows([
+        ['Diesel (frota / geradores)', em.s1.diesel],
+        ['Gasolina', em.s1.gasolina],
+        ['Gás natural', em.s1.gas_natural],
+        ['GLP', em.s1.glp],
+        ['Gases refrigerantes', em.s1.refrigerante],
+        ['Processos industriais', em.s1.processos]
+      ])}
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-header"><span class="scope-pill pill-s2">ESCOPO 2</span> Energia Comprada</div>
+      ${rows([
+        ['Energia elétrica (rede SIN)', em.s2.energia],
+        ['Vapor / energia térmica', em.s2.vapor]
+      ])}
+    </div>
+
+    <div class="detail-section">
+      <div class="detail-header"><span class="scope-pill pill-s3">ESCOPO 3</span> Cadeia de Valor</div>
+      ${rows([
+        ['Frete / logística terceirizada', em.s3.frete],
+        ['Viagens aéreas corporativas', em.s3.viagens],
+        ['Viagens terrestres terceirizadas', em.s3.terrestres],
+        ['Resíduos sólidos', em.s3.residuos],
+        ['Água (tratamento)', em.s3.agua]
+      ])}
+    </div>
+
+    <div class="footer-note">
+      Fatores de emissão: GHG Protocol Corporate Standard · MCTI/SEEG Brasil · Fator médio SIN 2023<br>
+      Metodologia market-based (Escopo 2) · Cálculo para fins de estimativa — requer verificação de terceira parte para reporte formal
+    </div>
+  `;
+}
+
+function restart() {
+  history = [];
+  reportPanel.style.display = 'none';
+  reportPanel.innerHTML = '';
+  messagesEl.style.display = 'flex';
+  document.getElementById('input-area').style.display = 'flex';
+  messagesEl.innerHTML = '';
+  ['step-intro','step-s1','step-s2','step-s3','step-report'].forEach((id,i) => {
+    document.getElementById(id).className = 'scope-item' + (i===0?' active':'');
+  });
+  startAgent();
+}
+
+async function send(text) {
+  if (loading || !text.trim()) return;
+  loading = true;
+  sendBtn.disabled = true;
+  addMsg('user', text);
+  history.push({ role: 'user', content: text });
+  const typingBub = addMsg('agent', '', true);
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: SYSTEM_PROMPT,
+        messages: history
+      })
+    });
+    const data = await res.json();
+    let reply = (data.content||[]).map(b=>b.text||'').join('');
+
+    const phase = detectPhase(reply);
+    if (phase) updateProgress(phase);
+
+    const reportMatch = reply.match(/<<<REPORT_DATA>>>([\s\S]*?)<<<END_REPORT>>>/);
+    if (reportMatch) {
+      try {
+        const rData = JSON.parse(reportMatch[1].trim());
+        reply = reply.replace(/<<<REPORT_DATA>>>[\s\S]*?<<<END_REPORT>>>/, '').trim();
+        typingBub.innerHTML = '';
+        typingBub.textContent = reply;
+        history.push({ role: 'assistant', content: reply });
+        setTimeout(() => renderReport(rData), 800);
+        loading = false;
+        sendBtn.disabled = false;
+        return;
+      } catch(e) {}
+    }
+
+    typingBub.innerHTML = '';
+    typingBub.textContent = reply;
+    history.push({ role: 'assistant', content: reply });
+    scrollBottom();
+  } catch(e) {
+    typingBub.innerHTML = '';
+    typingBub.textContent = 'Erro de conexão. Verifique sua chave de API e tente novamente.';
+  }
+
+  loading = false;
+  sendBtn.disabled = false;
+  inputEl.focus();
+}
+
+async function startAgent() {
+  loading = true;
+  sendBtn.disabled = true;
+  const typingBub = addMsg('agent', '', true);
+  const initMsg = 'Olá, gostaria de iniciar meu inventário de emissões GHG.';
+  history.push({ role: 'user', content: initMsg });
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: SYSTEM_PROMPT,
+        messages: history
+      })
+    });
+    const data = await res.json();
+    const reply = (data.content||[]).map(b=>b.text||'').join('');
+    typingBub.innerHTML = '';
+    typingBub.textContent = reply;
+    history.push({ role: 'assistant', content: reply });
+    scrollBottom();
+  } catch(e) {
+    typingBub.innerHTML = '';
+    typingBub.textContent = 'Erro ao iniciar o agente. Verifique sua conexão.';
+  }
+
+  loading = false;
+  sendBtn.disabled = false;
+}
+
+sendBtn.addEventListener('click', () => { send(inputEl.value); inputEl.value = ''; });
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(inputEl.value); inputEl.value = ''; }
+});
+inputEl.addEventListener('input', () => {
+  inputEl.style.height = 'auto';
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 100) + 'px';
+});
+
+startAgent();
+</script>
+</body>
+</html>
